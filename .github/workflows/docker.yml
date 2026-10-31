@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 5 * * *"   # daily, to pick up new nginx mainline releases
+    - cron: "0 5 * * *"   # daily, builds only if the nginx base image changed
   workflow_dispatch:
 
 env:
@@ -17,15 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
-
-      - name: Pull latest nginx mainline and get version
-        id: ver
-        run: |
-          docker pull nginx:mainline
-          v=$(docker run --rm nginx:mainline sh -c 'echo $NGINX_VERSION')
-          echo "nginx=$v" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request'
@@ -34,15 +26,34 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Check whether nginx base image changed
+        id: check
+        run: |
+          digest=$(docker buildx imagetools inspect nginx:mainline --format '{{.Manifest.Digest}}')
+          short=$(echo "${digest#sha256:}" | cut -c1-12)
+          docker pull nginx:mainline
+          v=$(docker run --rm nginx:mainline sh -c 'echo $NGINX_VERSION')
+          echo "nginx=$v" >> "$GITHUB_OUTPUT"
+          echo "basetag=base-$short" >> "$GITHUB_OUTPUT"
+          build=true
+          if [ "${{ github.event_name }}" = "schedule" ] && \
+             docker buildx imagetools inspect "$IMAGE:base-$short" >/dev/null 2>&1; then
+            echo "Base image unchanged ($digest); skipping build."
+            build=false
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
+        if: steps.check.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           pull: true
           tags: |
             ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.ver.outputs.nginx }}
+            ${{ env.IMAGE }}:${{ steps.check.outputs.nginx }}
+            ${{ env.IMAGE }}:${{ steps.check.outputs.basetag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
