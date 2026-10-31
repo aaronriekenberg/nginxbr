@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/nginx-brotli
+  IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'local' }}/nginx-brotli
 
 jobs:
   build:
