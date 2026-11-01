@@ -47,7 +47,9 @@ jobs:
         if: steps.check.outputs.build == 'true'
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: https://github.com/nginx/docker-nginx.git#master:modules
+          build-args: |
+            ENABLED_MODULES=brotli
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           pull: true
