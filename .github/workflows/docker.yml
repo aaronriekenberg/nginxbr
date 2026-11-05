@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule: "every 6h"
+  schedule: daily
   workflow_dispatch:
 
 env:
