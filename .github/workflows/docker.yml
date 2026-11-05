@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "50 4 * * *"   # daily, builds only if the nginx base image changed
-      timezone: "America/Chicago"
+  schedule: every 6h
   workflow_dispatch:
 
 env:
