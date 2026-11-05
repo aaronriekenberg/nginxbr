@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule: daily
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 env:
